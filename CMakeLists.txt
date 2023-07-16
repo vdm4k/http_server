@@ -3,16 +3,25 @@ project(http_server VERSION 0.9.0 DESCRIPTION "http server library")
 
 # core h files
 set(H_FILES
-    include/http_server/request.h    
-    include/http_server/private/request_handler.h
+    include/http_server/request.h
+    include/http_server/response.h
     include/http_server/http_server.h
+    include/http_server/request_handler.h
+    include/http_server/config.h
+    include/http_server/private/request_parser.h    
+    include/http_server/private/thread.h
+    include/http_server/private/connection.h
+    include/http_server/private/transaction.h
+    include/http_server/private/client_settings.h
 )
 
 # core cpp files
 set(CPP_FILES
-    source/request.cpp    
-    source/private/request_handler.cpp
+    source/request.cpp
+    source/response.cpp
     source/http_server.cpp
+    source/private/request_parser.cpp
+    source/private/thread.cpp
 )
 
 include("${PROJECT_SOURCE_DIR}/third_party/http_client.cmake")

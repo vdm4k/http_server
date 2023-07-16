@@ -30,12 +30,12 @@ int main() {
 //    LOG_TRACE_L3(logger, "Support for floats {:03.2f}", 1.23456);
 
     using namespace bro::net::http;
-    server::http_server server({bro::net::proto::ip::address{"127.0.0.1"}, 23456});
-    server.add_handler(client::request::type::e_GET, "/", {._cb = [](server::request &&req, server::respons_sender &srv, std::any user_data) {
+    server::http_server server({._bind_addr{bro::net::proto::ip::address{"127.0.0.1"}, 22345},._connection_type = server::connection_type::e_http,._server_name = "nginx/1.14.0 (Ubuntu)"});
+    server.add_handler(client::request::type::e_GET, "/", {._cb = [](server::request &&req, server::response &srv, std::any user_data) {
                         //srv.
                     }});
     server.start();
-    std::this_thread::sleep_for(std::chrono::seconds(1));
+    std::this_thread::sleep_for(std::chrono::seconds(1000));
     server.stop();
     return 0;
 }

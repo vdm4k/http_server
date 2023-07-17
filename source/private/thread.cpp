@@ -31,6 +31,15 @@ bool thread::set_new_stream(strm::stream_ptr &&stream) {
 }
 
 void fill_headers(response & resp, config const & conf, client_settings const &cl_settings) {
+
+    if(conf._generate_date_in_response) {
+        std::time_t time = std::time({});
+        char timeString[std::size("MMM, dd mmm yyyy hh:mm:ss GMT")];
+        std::strftime(std::data(timeString), std::size(timeString),
+                      "%a, %d %b %Y %X GMT", std::gmtime(&time));
+        resp.add_header(std::string("date"), timeString);
+    }
+
     if(!conf._server_name.empty())
         resp.add_header(header::to_string(header::types::e_Server), conf._server_name.c_str());
 
@@ -42,9 +51,42 @@ void fill_headers(response & resp, config const & conf, client_settings const &c
         resp.add_header(header::to_string(header::types::e_Connection), close);
     }
 
-    int body_size = resp.get_body_v().empty() ? resp.get_body_s().size() : resp.get_body_v().size();
+    int body_size = !resp.get_body_s().empty() ? resp.get_body_s().size() : resp.get_body_v().size();
     if(body_size)
         resp.add_header(header::to_string(header::types::e_Content_Length), std::to_string(body_size));
+}
+
+struct compress_node {
+    thread *_request;
+    std::string *_result;
+    bool *_res;
+};
+
+bool thread::compress_body(response & resp) {
+    zlib::stream zstream;
+    if(!zstream.init(bro::zlib::stream::type::e_compressor)) {
+        LOG_ERROR(_logger, "couldn't init compressor");
+        return false;
+    }
+
+    char const * at = resp.get_body_s().empty() ? resp.get_body_v().data() : resp.get_body_s().data();
+    size_t length = resp.get_body_s().empty() ? resp.get_body_v().size() : resp.get_body_s().size();
+    std::string result;
+    bool res = true;
+    compress_node c_node{this, &result, &res};
+    auto fun = [](Bytef *data, size_t lenght, std::any user_data, char const *error) {
+        auto [req, result, res] = *std::any_cast<compress_node *>(user_data);
+        if (error) {
+            LOG_ERROR(req->_logger, "Compressor error ", error);
+            *res = false;
+        } else {
+            result->append((char const *) data, lenght);
+        }
+    };
+    if(!zstream.process((Bytef *) at, length, &c_node, fun, true))
+        return false;
+//    resp.add_body(result);
+    return res;
 }
 
 void thread::parse_result_cb(request &req, std::any user_data, char const *error) {
@@ -62,9 +104,6 @@ void thread::parse_result_cb(request &req, std::any user_data, char const *error
             v._cb(std::move(req), resp, it->second._data);
         } else {
             LOG_INFO(con->_thread->_logger, "Receive request on url {} without handler", req.get_url());
-            resp.add_header(std::string_view("date"), "Sun, 16 Jul 2023 16:05:02 GMT");
-//            resp.add_header(std::string_view("x-cache-status"), "from content-cache-gs2/1");
-//            resp.add_header(std::string_view("x-networkmanager-status"), "online");
             resp.set_status_code(status::code::e_Not_Found);
             cl_settings._keep_alive_connection = false;
 
@@ -124,9 +163,10 @@ void thread::parse_result_cb(request &req, std::any user_data, char const *error
 
         LOG_INFO(con->_thread->_logger, "bum bum {}", std::string((char *)st_allocator.get_array(), st_allocator.get_size()));
         con->_stream->send(st_allocator.get_array(), st_allocator.get_size());
-//        con->_stream.reset();
     }
 }
+
+
 
 void thread::process_new_stream(strm::stream_ptr &&stream) {
     if (!stream->is_active()) {

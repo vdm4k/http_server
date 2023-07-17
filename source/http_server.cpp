@@ -137,17 +137,14 @@ bool http_server_internal::create_listen_stream() {
 
     switch (_config._connection_type) {
     case connection_type::e_http: {
-        bro::net::tcp::listen::settings settings;
-        settings._listen_address = _config._bind_addr;
+        bro::net::tcp::listen::settings settings = _config._settings;
         settings._proc_in_conn = in_connections;
         _listen_stream = _factory.create_stream(&settings);
         break;
     }
     case connection_type::e_https: {
-        bro::net::tcp::ssl::listen::settings settings;
-        settings._listen_address = _config._bind_addr;
-        settings._proc_in_conn = in_connections;
-        _listen_stream = _factory.create_stream(&settings);
+        _config._settings._proc_in_conn = in_connections;
+        _listen_stream = _factory.create_stream(&_config._settings);
         break;
     }
     }

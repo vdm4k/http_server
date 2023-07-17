@@ -13,7 +13,7 @@ inline void get_client_settings(request &req, client_settings & cl_settings) {
     for(auto const & hdr : hdrs) {
         if(hdr._type == header::to_string(header::types::e_Accept_Encoding)) {
             std::string val;
-            std::transform(hdr._value.begin(), hdr._value.end(), val.begin(), ::tolower);
+            std::transform(hdr._value.begin(), hdr._value.end(), std::back_inserter(val), ::tolower);
             if(auto res = val.find("gzip"); res != val.npos) {
                 cl_settings._accept_gzip_deflate = true;
             }
@@ -21,7 +21,7 @@ inline void get_client_settings(request &req, client_settings & cl_settings) {
 
         if(hdr._type == header::to_string(header::types::e_Connection)) {
             std::string val;
-            std::transform(hdr._value.begin(), hdr._value.end(), val.begin(), ::tolower);
+            std::transform(hdr._value.begin(), hdr._value.end(), std::back_inserter(val), ::tolower);
             if(auto res = val.find("keep-alive"); res != val.npos) {
                 cl_settings._keep_alive_connection = true;
             }

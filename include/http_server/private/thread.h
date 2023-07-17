@@ -33,6 +33,7 @@ private:
     bool serve();
     void logic_proceed();
     void process_new_stream(strm::stream_ptr &&stream);
+    bool compress_body(response & resp);
     static void parse_result_cb(request &req, std::any user_data, char const *error);
 
     config _config;

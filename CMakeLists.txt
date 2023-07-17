@@ -59,7 +59,4 @@ if(WITH_EXAMPLES)
     add_subdirectory(examples)
 endif()
 
-add_executable(${PROJECT_NAME}_ex main.cpp )
 target_link_libraries(${PROJECT_NAME} PUBLIC Threads::Threads http_client::http_client quill::quill system::system)
-target_link_libraries(${PROJECT_NAME}_ex PUBLIC http_server::http_server quill::quill system::system)
-

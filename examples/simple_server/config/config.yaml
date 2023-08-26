@@ -1,0 +1,38 @@
+request_handlers:
+  - path: /
+    method: GET
+    status_code: 200
+    response_body: "body"
+    response_body_type: "body"
+    server_name: "awesome_server/1.0.0"
+logger:
+  level: debug
+  core_id: 1
+  thread_name: server_logger
+  logger_name: server_logger
+listener:
+  core_id: 1
+  name: loader
+  sleep: 500
+  call_sleep_on_n_empty_loop_in_a_row: 10
+  flush_statistic: 1000
+http_specific:
+  compress_body: true
+  generate_date_in_response: true
+  server_name: listener
+handlers:
+  total: 2
+  core_ids:
+    - 1
+    - 2
+    - 3
+  prefix_name: loader
+  sleep: 500
+  call_sleep_on_n_empty_loop_in_a_row: 10
+  flush_statistic: 1000
+ssl:
+  certificate_path: "/home/vdm4k/projects/http_server/cert.pem"
+  key_path: "/home/vdm4k/projects/http_server/key.pem"
+address: "127.0.0.1"
+port: 22345
+test_time: 40

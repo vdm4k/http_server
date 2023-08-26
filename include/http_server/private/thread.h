@@ -21,7 +21,11 @@ public:
         std::optional<size_t> _core;
     };
 
-    thread(config & conf, quill::Logger* logger, std::vector<std::unordered_map<std::string, request_handler>> const &handlers, server::config const & server_config);
+    thread(config & conf,
+           system::thread::config const & thread_conf,
+           quill::Logger* logger,
+           std::vector<std::unordered_map<std::string, request_handler>> const &handlers,
+           bro::net::http::server::config::http_specific const & server_config);
 
     bool set_new_stream(strm::stream_ptr &&stream);
     size_t get_number_of_active_streams() const noexcept;
@@ -39,7 +43,7 @@ private:
     config _config;
     quill::Logger* _logger = nullptr;
     std::vector<std::unordered_map<std::string, request_handler>> const & _handlers;
-    server::config const & _server_config;
+    bro::net::http::server::config::http_specific const & _server_config;
     bro::net::ev::factory _factory;
     std::unordered_map<bro::strm::stream*, std::unique_ptr<connection>> _streams;
     std::set<connection *> _failed_connections;

@@ -1,6 +1,3 @@
-#dirs
-build
-
 # Prerequisites
 *.d
 
@@ -9,6 +6,7 @@ build
 *.lo
 *.o
 *.obj
+build
 
 # Precompiled Headers
 *.gch
@@ -33,3 +31,9 @@ build
 *.exe
 *.out
 *.app
+
+CMakeLists.txt.user
+.cache
+.github
+.vscode
+build*

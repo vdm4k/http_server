@@ -1,3 +1,4 @@
+#include <memory>
 #include <queue>
 #include "network/stream/factory.h"
 #include "quill/Quill.h"
@@ -12,7 +13,9 @@ namespace bro::net::http::server {
 class http_server_internal {
 public:
 
-    http_server_internal(config const &conf);
+    explicit http_server_internal(std::unique_ptr<bro::net::listen::settings> &&settings);
+    http_server_internal(std::unique_ptr<bro::net::listen::settings> &&connection_settings, config::server &&server_settings);
+    
     ~http_server_internal();
     bool add_handler(http::client::request::type type, std::string const &path, request_handler const & request_h);
     bool start();
@@ -21,16 +24,15 @@ public:
 
 private:
 
-    std::unique_ptr<http_server_internal> _pimpl;
-
     void pre_start();
     void post_end();
     bool serve() ;
     void process_new_stream(strm::stream_ptr &&stream);
     bool create_listen_stream();
+    void init_logger();
 
-    config _config;
-    bro::net::ev::factory _factory;                                        ///< send stream factory
+    std::unique_ptr<bro::net::listen::settings> _connection_settings;
+    config::server _server_settings;                                 
     bro::strm::stream_ptr _listen_stream;                                         ///< connection to server
     std::vector<std::unordered_map<std::string, request_handler>> _handlers;
     std::vector<std::unique_ptr<http::server::private_::thread>> _threads;
@@ -39,19 +41,47 @@ private:
     size_t _new_stream_count{0};
 };
 
-http_server_internal::http_server_internal(const config &conf) : _config(conf), _handlers(int(http::client::request::type::e_Unknown_Type)) {
-    /*auto stdout_handler_1 = quill::stdout_handler("stdout_1");
-    stdout_handler_1->set_pattern(
-        "%(ascii_time) [%(process)] [%(thread)] LOG_%(level_name) %(logger_name) - %(message)", // message format
-        "%D %H:%M:%S.%Qms %z",     // timestamp format
-        quill::Timezone::GmtTime); // timestamp's timezone
-    _logger = quill::create_logger("http_server_logger", std::move(stdout_handler_1)); */
-    _logger = quill::create_logger("http_server_logger");
-    _logger->set_log_level(quill::LogLevel::TraceL3);
+http_server_internal::http_server_internal(std::unique_ptr<bro::net::listen::settings> &&connection_settings) : 
+    _connection_settings(std::move(connection_settings)),
+    _handlers(int(http::client::request::type::e_Unknown_Type)) {
+    _server_settings._listener._factory = std::make_unique<bro::net::ev::factory>();
+    init_logger();
+}
+
+
+http_server_internal::http_server_internal(std::unique_ptr<bro::net::listen::settings> &&connection_settings, config::server &&server_settings) : 
+_connection_settings(std::move(connection_settings)),
+_server_settings(std::move(server_settings)),
+_handlers(int(http::client::request::type::e_Unknown_Type)) {
+    init_logger();
+    if(!_server_settings._listener._factory)
+       _server_settings._listener._factory = std::make_unique<bro::net::ev::factory>();
 }
 
 http_server_internal::~http_server_internal() {
     _threads.clear();
+}
+
+void http_server_internal::init_logger() {
+    quill::Config q_cfg;
+    q_cfg.enable_console_colours = true;
+    q_cfg.backend_thread_empty_all_queues_before_exit = true;
+    if(!_server_settings._logger._thread_name.empty())
+        q_cfg.backend_thread_name = _server_settings._logger._thread_name;
+    if(_server_settings._logger._core)
+        q_cfg.backend_thread_cpu_affinity = *_server_settings._logger._core;
+
+    if(!_server_settings._logger._file_name.empty()) {
+        auto file_handler = quill::file_handler(_server_settings._logger._file_name, "w", quill::FilenameAppend::DateTime);
+        q_cfg.default_handlers.push_back(std::move(file_handler));
+    }
+
+
+    quill::configure(q_cfg);
+    quill::start();
+
+    _logger = quill::create_logger(_server_settings._logger._logger_name);
+    _logger->set_log_level(_server_settings._logger._level);
 }
 
 bool http_server_internal::add_handler(http::client::request::type type, std::string const &path, request_handler const & request_h) {
@@ -67,20 +97,26 @@ bool http_server_internal::start() {
     if(!create_listen_stream())
         return false;
 
-    for(size_t i = 0; i < _config._handler_threads; ++i) {
+    for(size_t i = 0; i < _server_settings._handlers._total; ++i) {
         std::optional<size_t> core;
-        if(!_config._handler_threads_affinity_cores.empty()) {
-            auto & cores = _config._handler_threads_affinity_cores;
+        if(!_server_settings._handlers._core_ids.empty()) {
+            auto & cores = _server_settings._handlers._core_ids;
             core = cores.front();
             cores.splice(cores.end(), cores, cores.begin());
         }
-        private_::thread::config conf{._name = "request_handler_" + std::to_string(i), ._core = core };
-        _threads.emplace_back(std::make_unique<private_::thread>(conf, _logger, _handlers, _config));
+        system::thread::config config;
+        config._sleep = _server_settings._handlers._sleep;
+        config._call_sleep_on_n_empty_loop_in_a_row = _server_settings._handlers._call_sleep_on_n_empty_loop_in_a_row;
+        config._flush_statistic = _server_settings._handlers._flush_statistic;
+
+        private_::thread::config conf{._name = "handler_" + std::to_string(i), ._core = core };
+        _threads.emplace_back(std::make_unique<private_::thread>(conf, config, _logger, _handlers, _server_settings._http_specific));
     }
 
     system::thread::config config;
-    config._sleep = std::chrono::microseconds(100);
-    config._call_sleep_on_n_empty_loop_in_a_row = 10'000;
+    config._sleep = _server_settings._listener._sleep;
+    config._call_sleep_on_n_empty_loop_in_a_row = _server_settings._listener._call_sleep_on_n_empty_loop_in_a_row;
+    config._flush_statistic = _server_settings._listener._flush_statistic;
 
     _thread.run_with_pre_post(system::thread::callable(&http_server_internal::serve, this),
                               system::thread::callable(&http_server_internal::pre_start, this),
@@ -99,9 +135,10 @@ void http_server_internal::stop() {
 }
 
 void http_server_internal::pre_start() {
-    _thread.set_name("http_server");
-    if(_config._listener_affinity_core)
-        _thread.set_affinity({*_config._listener_affinity_core});
+    if(!_server_settings._listener._name.empty())
+        _thread.set_name(_server_settings._listener._name);
+    if(_server_settings._listener._core_id)
+        _thread.set_affinity({*_server_settings._listener._core_id});
     LOG_INFO(_logger, "Start Server thread {}", _thread.get_name());
 }
 
@@ -110,7 +147,7 @@ void http_server_internal::post_end() {
 }
 
 bool http_server_internal::serve() {
-    _factory.proceed();
+    _server_settings._listener._factory->proceed();
     bool had_new_streams = _new_stream_count > 0;
     _new_stream_count = 0;
     return had_new_streams;
@@ -135,19 +172,13 @@ bool http_server_internal::create_listen_stream() {
         process_new_stream(std::move(stream));
     };
 
-    switch (_config._connection_type) {
-    case connection_type::e_http: {
-        bro::net::tcp::listen::settings settings = _config._settings;
-        settings._proc_in_conn = in_connections;
-        _listen_stream = _factory.create_stream(&settings);
-        break;
+    if(!_connection_settings) {
+        LOG_ERROR(_logger, "pointer on listen settings is empty");
+        return false;
     }
-    case connection_type::e_https: {
-        _config._settings._proc_in_conn = in_connections;
-        _listen_stream = _factory.create_stream(&_config._settings);
-        break;
-    }
-    }
+
+    _connection_settings->_proc_in_conn = in_connections;
+    _listen_stream = _server_settings._listener._factory->create_stream(_connection_settings.get());
 
     if (!_listen_stream->is_active()) {
         LOG_ERROR(_logger, "Create stream failed with error - {}", _listen_stream->get_error_description());
@@ -164,12 +195,18 @@ bool http_server_internal::create_listen_stream() {
         },
         nullptr);
 
-    _factory.bind(_listen_stream);
+    _server_settings._listener._factory->bind(_listen_stream);
     return true;
 }
 
+http_server::http_server(std::unique_ptr<bro::net::listen::settings> &&connection_settings) : 
+    _server(std::make_unique<http_server_internal>(std::move(connection_settings))) {
 
-http_server::http_server(config const &conf) : _server(std::make_unique<http_server_internal>(conf)) {
+}
+
+http_server::http_server(std::unique_ptr<bro::net::listen::settings> &&connection_settings, config::server &&server_settings) : 
+    _server(std::make_unique<http_server_internal>(std::move(connection_settings), std::move(server_settings))) {
+
 }
 
 http_server::~http_server() {

@@ -6,21 +6,20 @@
 
 namespace bro::net::http::server::private_ {
 
-thread::thread(config &conf, quill::Logger *logger, std::vector<std::unordered_map<std::string, request_handler>> const &handlers, server::config const &server_config) :
+thread::thread(config &conf, const system::thread::config &thread_conf, quill::Logger *logger,
+               std::vector<std::unordered_map<std::string, request_handler>> const &handlers,
+               bro::net::http::server::config::http_specific const &server_config) :
     _config(conf),
     _logger(logger),
     _handlers(handlers),
     _server_config(server_config),
     _has_new_stream(false) {
-    system::thread::config config;
-    config._sleep = std::chrono::microseconds(100);
-    config._call_sleep_on_n_empty_loop_in_a_row = 10'000;
 
     _thread.run_with_logic_pre_post(system::thread::callable(&thread::serve, this),
                                     system::thread::callable(&thread::logic_proceed, this),
                               system::thread::callable(&thread::pre_start, this),
                               system::thread::callable(&thread::post_end, this),
-                              &config);
+                              &thread_conf);
 }
 
 bool thread::set_new_stream(strm::stream_ptr &&stream) {
@@ -30,7 +29,7 @@ bool thread::set_new_stream(strm::stream_ptr &&stream) {
     return true;
 }
 
-void fill_headers(response & resp, config const & conf, client_settings const &cl_settings) {
+void fill_headers(response & resp, bro::net::http::server::config::http_specific const & conf, client_settings const &cl_settings) {
 
     if(conf._generate_date_in_response) {
         std::time_t time = std::time({});
@@ -43,7 +42,7 @@ void fill_headers(response & resp, config const & conf, client_settings const &c
     if(!conf._server_name.empty())
         resp.add_header(header::to_string(header::types::e_Server), conf._server_name.c_str());
 
-    if (conf._connection_strategy == connection_strategy::e_keep_alive && cl_settings._keep_alive_connection) {
+    if (conf._connection_strategy == bro::net::http::server::config::connection_strategy::e_keep_alive && cl_settings._keep_alive_connection) {
         char const *keep_alive = "Keep-Alive";
         resp.add_header(header::to_string(header::types::e_Connection), keep_alive);
     } else {
@@ -57,9 +56,9 @@ void fill_headers(response & resp, config const & conf, client_settings const &c
 }
 
 struct compress_node {
-    thread *_request;
-    std::string *_result;
-    bool *_res;
+    thread *_request = nullptr;
+    std::string *_result = nullptr;
+    bool *_res = nullptr;
 };
 
 bool thread::compress_body(response & resp) {
@@ -165,8 +164,6 @@ void thread::parse_result_cb(request &req, std::any user_data, char const *error
         con->_stream->send(st_allocator.get_array(), st_allocator.get_size());
     }
 }
-
-
 
 void thread::process_new_stream(strm::stream_ptr &&stream) {
     if (!stream->is_active()) {

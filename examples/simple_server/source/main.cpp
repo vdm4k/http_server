@@ -43,14 +43,14 @@ int main(int argc, char **argv) {
 
     std::unique_ptr<bro::net::listen::settings> connection_settings;
     if(config->_ssl) {
-        tcp::listen::settings * settings = new tcp::listen::settings;
-        settings->_listen_address = config->_address;
-        connection_settings.reset(settings);
-    } else {
         tcp::ssl::listen::settings * settings = new tcp::ssl::listen::settings;
         settings->_listen_address = config->_address;
         settings->_certificate_path = config->_ssl->_certificate_path;
         settings->_key_path = config->_ssl->_key_path;
+        connection_settings.reset(settings);
+    } else {
+        tcp::listen::settings * settings = new tcp::listen::settings;
+        settings->_listen_address = config->_address;
         connection_settings.reset(settings);
     }
 
@@ -73,6 +73,9 @@ int main(int argc, char **argv) {
     if(config->_test_time) {
         std::this_thread::sleep_for(std::chrono::seconds(*config->_test_time));
     } else {
+        struct sigaction act{};
+        act.sa_handler = stop_signal_h;
+        sigaction(SIGINT, &act, NULL);
         while(s_active.load(std::memory_order_acquire))
             std::this_thread::sleep_for(std::chrono::seconds(1));
     }

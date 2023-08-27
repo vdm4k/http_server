@@ -130,8 +130,8 @@ bool http_server_internal::is_running() const {
 }
 
 void http_server_internal::stop() {
-    _threads.clear();
     _thread.stop();
+    _threads.clear();    
 }
 
 void http_server_internal::pre_start() {

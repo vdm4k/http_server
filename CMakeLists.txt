@@ -41,6 +41,7 @@ target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC
 
 #sanitizer
 option(WITH_SANITIZER "Enable address sanitizer" OFF)
+set(EXPORT_COMPILE_COMMANDS TRUE)
 
 if(WITH_SANITIZER)
     set_target_properties(${PROJECT_NAME} PROPERTIES POSITION_INDEPENDENT_CODE True)

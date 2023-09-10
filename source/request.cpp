@@ -22,6 +22,16 @@ std::string request::move_body() {
     return std::move(_body);
 }
 
+void request::cleanup() {
+    _type = {client::request::type::e_Unknown_Type};    
+    _version = {header::version::e_Unknown_Version}; 
+    _headers.clear();                              
+    _body.clear();                                  
+    _url.clear();                                   
+    _is_gzip_encoded = {false};                    
+    _body.clear();
+}
+
 std::vector<request::header_data> const &request::get_headers() const {
     return _headers;
 }

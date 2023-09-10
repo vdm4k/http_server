@@ -20,10 +20,15 @@ public:
    * \brief header description
    */
     struct header_data {
-        std::string _type;  ///<  header type
+        std::string _type;  ///< header type
         std::string _value; ///< header value
     };
 
+  /**
+   * \brief Get the url 
+   * 
+   * \return std::string const& url
+   */
     std::string const & get_url() const;
 
   /*! \brief get status code
@@ -50,6 +55,8 @@ public:
   * \result reference on headers
   */
     std::vector<header_data> const &get_headers() const;
+
+    void cleanup();
 
 private:
     friend class private_::request_parser;

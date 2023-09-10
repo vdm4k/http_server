@@ -31,7 +31,7 @@ int main(int argc, char **argv) {
     CLI::App app{"http_simple_server"};
     std::string config_path{"/home/vdm4k/projects/http_server/examples/simple_server/config/config.yaml"};
     app.add_option("-c,--config", config_path, "path to config file");
-   // CLI11_PARSE(app, argc, argv);
+    CLI11_PARSE(app, argc, argv);
 
     auto config = bro::net::http::server::simple::config::parse(config_path);
     if(!config)

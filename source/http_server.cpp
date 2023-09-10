@@ -1,5 +1,4 @@
 #include <memory>
-#include <queue>
 #include "network/stream/factory.h"
 #include "quill/Quill.h"
 #include <http_server/http_server.h>
@@ -10,16 +9,62 @@
 
 namespace bro::net::http::server {
 
+/**
+ * \brief http server implementation
+ */
 class http_server_internal {
 public:
 
-    explicit http_server_internal(std::unique_ptr<bro::net::listen::settings> &&settings);
+    /**
+     * @brief Construct a new http server
+     * 
+     * @param connection_settings listen settings 
+     */
+    explicit http_server_internal(std::unique_ptr<bro::net::listen::settings> &&connection_settings);
+
+    /**
+     * @brief Construct a new http server 
+     * 
+     * @param connection_settings listen settings 
+     * @param server_settings setver settings
+     */
     http_server_internal(std::unique_ptr<bro::net::listen::settings> &&connection_settings, config::server &&server_settings);
     
+    /**
+     * @brief dtor
+     */
     ~http_server_internal();
+
+    /**
+     * @brief add handler for specific url(path)
+     * 
+     * @param type request type (get, post, ...)
+     * @param path specific path (url)
+     * @param request_h handler for this specific request/url
+     * @return true if handler was successfully added 
+     * @return false otherwise (collision for specific path/type)
+     */
     bool add_handler(http::client::request::type type, std::string const &path, request_handler const & request_h);
+
+    /**
+     * @brief start server
+     * 
+     * @return true if server started
+     * @return false otherwise
+     */
     bool start();
+
+    /**
+     * @brief is server running
+     * 
+     * @return true if it's running
+     * @return false otherwise
+     */
     bool is_running() const;
+
+    /**
+     * @brief stop server
+     */
     void stop();
 
 private:
@@ -201,17 +246,13 @@ bool http_server_internal::create_listen_stream() {
 
 http_server::http_server(std::unique_ptr<bro::net::listen::settings> &&connection_settings) : 
     _server(std::make_unique<http_server_internal>(std::move(connection_settings))) {
-
 }
 
 http_server::http_server(std::unique_ptr<bro::net::listen::settings> &&connection_settings, config::server &&server_settings) : 
     _server(std::make_unique<http_server_internal>(std::move(connection_settings), std::move(server_settings))) {
-
 }
 
-http_server::~http_server() {
-
-}
+http_server::~http_server(){}
 
 bool http_server::add_handler(http::client::request::type type, std::string const &path, request_handler const & request_h) {
     return _server->add_handler(type, path, request_h);

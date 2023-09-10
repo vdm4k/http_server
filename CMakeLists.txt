@@ -11,7 +11,6 @@ set(H_FILES
     include/http_server/private/request_parser.h    
     include/http_server/private/thread.h
     include/http_server/private/connection.h
-    include/http_server/private/transaction.h
     include/http_server/private/client_settings.h
 )
 
@@ -48,11 +47,6 @@ if(WITH_SANITIZER)
     target_compile_options(${PROJECT_NAME} INTERFACE -fsanitize=address)
     target_link_options(${PROJECT_NAME} INTERFACE -fsanitize=address)
 endif()
-
-option(WITH_TESTS "Build tests" OFF)
-if(WITH_TESTS)
-    add_subdirectory(tests)
-endif(WITH_TESTS)
 
 #examples
 option(WITH_EXAMPLES "Build examples" OFF)

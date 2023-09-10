@@ -4,6 +4,9 @@
 
 namespace bro::net::http::server {
 
+/**
+ * \brief request handler
+  */
 class request_handler {
 public:
     /**
@@ -11,7 +14,7 @@ public:
       */
     using cbt = std::function<void(request &&req, response & res, std::any user_data)>;
     cbt _cb;        ///< request handler
-    std::any _data; ///< user datacompress_body
+    std::any _data; ///< user data
 };
 
 } // namespace bro::net::http::server

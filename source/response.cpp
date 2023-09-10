@@ -8,12 +8,12 @@ void response::set_status_code(status::code code) {
 }
 
 void response::add_header(std::string_view const &type, std::string const &value) {
-    _total_size += value.size() + type.size() + client::e_header_add_size;
+    _header_total_size += value.size() + type.size() + client::e_header_add_size;
     _headers_v.push_back({type, value});
 }
 
 void response::add_header(std::string const &type, std::string const &value) {
-    _total_size += value.size() + type.size() + client::e_header_add_size;
+    _header_total_size += value.size() + type.size() + client::e_header_add_size;
     _headers_s.push_back({type, value});
 }
 

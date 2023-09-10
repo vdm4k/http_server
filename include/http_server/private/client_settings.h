@@ -3,13 +3,23 @@
 
 namespace bro::net::http::server::private_ {
 
+/**
+ * \brief request(client) specific settings
+ */
 struct client_settings {
-    bool _accept_gzip_deflate = false;
-    bool _keep_alive_connection = true;
+    bool _accept_gzip_deflate = false;  ///< support compress data 
+    bool _keep_alive_connection = true; ///< not close connection after send response
 };
 
-inline void get_client_settings(request &req, client_settings & cl_settings) {
+ /**
+  * \brief fill client settings based on request sended by client
+  * 
+  * \param req[in] request from client
+  * \return client_settings client settings
+  */
+inline client_settings get_client_settings(request const &req) {
     auto const & hdrs  = req.get_headers();
+    client_settings cl_settings{};
     for(auto const & hdr : hdrs) {
         if(hdr._type == header::to_string(header::types::e_Accept_Encoding)) {
             std::string val;
@@ -27,6 +37,7 @@ inline void get_client_settings(request &req, client_settings & cl_settings) {
             }
         }
     }
+    return cl_settings;
 }
 } // namespace bro::net::http::server::private_
 

@@ -12,7 +12,7 @@ thread::thread(config &conf, const system::thread::config &thread_conf, quill::L
     _config(conf),
     _logger(logger),
     _handlers(handlers),
-    _server_config(server_config),
+    _http_config(server_config),
     _has_new_stream(false) {
 
     _thread.run_with_logic_pre_post(system::thread::callable(&thread::serve, this),
@@ -55,10 +55,13 @@ void fill_headers(response & resp, bro::net::http::server::config::http_specific
         resp.add_header(header::to_string(header::types::e_Content_Length), std::to_string(body_size));
 }
 
+/**
+ * \brief user data for compress data call
+ */
 struct compress_node {
-    thread *_request = nullptr;
-    std::string *_result = nullptr;
-    bool *_res = nullptr;
+    thread *_request = nullptr;     ///< pointer on request
+    std::string *_result = nullptr; ///< pointer on result data
+    bool *_res = nullptr;           ///< call function result
 };
 
 bool thread::compress_body(response & resp) {
@@ -89,13 +92,12 @@ bool thread::compress_body(response & resp) {
 }
 
 void thread::parse_result_cb(request &req, std::any user_data, char const *error) {
-    connection *con = std::any_cast<connection *>(user_data);
+    connection_descriptor *con = std::any_cast<connection_descriptor *>(user_data);
     if(error) {
         LOG_ERROR(con->_thread->_logger, "{}", error);
         con->_thread->_failed_connections.insert(con);
     } else {
-        client_settings cl_settings;
-        get_client_settings(req, cl_settings);
+        client_settings cl_settings(get_client_settings(req));
         response resp;
         auto const & handlers = con->_thread->_handlers[(int)req.get_type()];
         if(auto it = handlers.find(req.get_url()); it != handlers.end()) {
@@ -123,10 +125,10 @@ void thread::parse_result_cb(request &req, std::any user_data, char const *error
         }
 
 
-        auto const & conf = con->_thread->_server_config;
-        fill_headers(resp, con->_thread->_server_config, cl_settings);
+        auto const & conf = con->_thread->_http_config;
+        fill_headers(resp, con->_thread->_http_config, cl_settings);
 
-        int total_size = resp.get_total_size();
+        int total_size = resp.get_header_total_size();
         int body_size = resp.get_body_v().empty() ? resp.get_body_s().size() : resp.get_body_v().size();
         total_size += header::to_string(conf._version).size() + status::to_string_as_number(resp.get_status_code()).size() +
                       status::to_string(resp.get_status_code()).size() + client::e_eol_size + client::e_2_spoce_size;
@@ -163,6 +165,7 @@ void thread::parse_result_cb(request &req, std::any user_data, char const *error
         LOG_INFO(con->_thread->_logger, "bum bum {}", std::string((char *)st_allocator.get_array(), st_allocator.get_size()));
         con->_stream->send(st_allocator.get_array(), st_allocator.get_size());
     }
+    req.cleanup(); 
 }
 
 void thread::process_new_stream(strm::stream_ptr &&stream) {
@@ -173,8 +176,8 @@ void thread::process_new_stream(strm::stream_ptr &&stream) {
 
     _factory.bind(stream);
     auto strm = stream.get();
-    std::unique_ptr<connection> strm_node(new connection{this, std::move(stream), {}});
-    request_parser * req_h = &strm_node->_transaction._request_parser;
+    std::unique_ptr<connection_descriptor> strm_node(new connection_descriptor{this, std::move(stream), {}});
+    request_parser * req_h = &strm_node->_request_parser;
     req_h->init(parse_result_cb, strm_node.get());
 
     LOG_INFO(_logger, "Add new stream {} to thread - {}", fmt::ptr(strm), _config._name);
@@ -183,7 +186,7 @@ void thread::process_new_stream(strm::stream_ptr &&stream) {
         [&](strm::stream *strm, std::any user_data) {
             if (!strm->is_active()) {
                 LOG_ERROR(_logger, "Send stream {} closed with status - {}", fmt::ptr(strm), strm->get_error_description());
-                connection *con = std::any_cast<connection *>(user_data);
+                connection_descriptor *con = std::any_cast<connection_descriptor *>(user_data);
                 _failed_connections.insert(con);
             } else {
                 LOG_INFO(_logger, "Send stream {} state changed with status - {}", fmt::ptr(strm), bro::strm::state_to_string(strm->get_state()));

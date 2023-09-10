@@ -1,7 +1,7 @@
 # HTTP server
 
 Http server is a labrary that can be used to write your own http serverl
-It's easy to start and easy to write tests ( thanks to network library )
+It's easy to start with and easy to write tests ( thanks to network library )
 
 
 ## ***Build***
@@ -29,7 +29,7 @@ pull of handler threads who's parse/handle incomming requests.
 ```cpp
    // create pointer on specific configuration listen  
    std::unique_ptr<bro::net::listen::settings> connection_settings(new tcp::listen::settings());
-   connection_settings->_listen_address = {proto::ip::v4::address("127.0.0.1"), 23456};;
+   connection_settings->_listen_address = {proto::ip::v4::address("127.0.0.1"), 23456};
 
    // create server
    http::server::http_server server(std::move(connection_settings));

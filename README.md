@@ -18,7 +18,7 @@ You need cmake
 
 ## Design
 
-Http library is asynchronous multi-threaded library. It use one listen thread who's waiting for incomming connections and 
+Http library is asynchronous multi-threaded library. It uses one listen thread who's waiting for incomming connections and 
 pull of handler threads who's parse/handle incomming requests.
 
 ## Examples

@@ -1,7 +1,10 @@
 # HTTP server
 
-Http server is a labrary that can be used to write your own http serverl
-It's easy to start with and easy to write tests ( thanks to network library )
+Http server is a library that can be used to write http server ( write handlers, parsing configs and other stuff )
+Main focus was on performance and test writing
+Depends on hardware you can have tens or hundreds of thousands RPS(requests per second) per thread (handler)
+Writing tests also easy. You can use gtest/gmock and implement your own factory that will create streams
+This streams can simulate different problems on network and you can check how your software handle it
 
 
 ## ***Build***
@@ -49,7 +52,7 @@ pull of handler threads who's parse/handle incomming requests.
    }
 ```
 
-### server with config
+### Server with config
 
-More complex example can be found in examples/simple_server folder.
+Minimal server with yaml config support. Just to show how it can be.
 Can be build with *-DWITH_EXAMPLES=ON* 

@@ -31,7 +31,7 @@ find_package(Threads REQUIRED)
 add_library(${PROJECT_NAME} STATIC ${CPP_FILES} ${H_FILES})
 add_library(http_server::${PROJECT_NAME} ALIAS ${PROJECT_NAME})
 
-target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
+target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_17)
 target_compile_options(${PROJECT_NAME} PRIVATE  -Wall -Wextra -Wpedantic -Wno-vla -Wno-unused-local-typedefs)
 
 target_include_directories(${PROJECT_NAME} SYSTEM PUBLIC

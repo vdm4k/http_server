@@ -56,6 +56,10 @@ public:
   */
     std::vector<header_data> const &get_headers() const;
 
+    /**
+     * \brief cleanup internal resources but not free memory. Some sort of optimization
+     * 
+     */
     void cleanup();
 
 private:

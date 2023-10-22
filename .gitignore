@@ -37,3 +37,4 @@ CMakeLists.txt.user
 .github
 .vscode
 build*
+doxygen/
